@@ -1,9 +1,11 @@
-# Title
+# Distrikvakanslistor
 
 ## Purpose
 
-Describes project
+I need to transcribe the distrikvakanslistor - part of the electricity project.
 
 ## Process
 
-Describes how far I am
+I am working on a digitizer and organizing some scans of the document.
+
+For the presentation I need to some maps based on the hand digitized versions.
