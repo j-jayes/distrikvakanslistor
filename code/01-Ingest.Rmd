@@ -5,3 +5,58 @@ date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
 ---
 
+```{r}
+library(tidyverse)
+```
+
+# purpose
+
+Ingest the transcribed data
+
+## city codebook
+
+```{r}
+city_codebook <- readxl::read_excel("data/city_codebook.xlsx") %>% 
+  janitor::clean_names()
+
+city_codebook <- city_codebook %>% 
+  mutate(stan_modern_spell = ifelse(is.na(stan_modern_spell), stan, stan_modern_spell))
+
+city_codebook
+```
+
+Geocode cities
+
+```{r}
+library(tidygeocoder)
+
+city_codebook
+
+lat_longs <- city_codebook %>% 
+  geocode(stan_modern_spell, method = "osm", lat = latitude, long = longitude)
+
+# lat_longs %>% 
+#   head(1) %>% 
+#   pull(latitude)
+
+lat_longs <- lat_longs %>% 
+  mutate(latitude = ifelse(is.na(latitude), 55.60529, latitude),
+         longitude = ifelse(is.na(longitude), 13.00016, longitude))
+
+city_codebook <- lat_longs
+
+# city_codebook %>% write_rds("data/city_codebook.rds")
+```
+
+
+## distrikvakanslistan
+
+```{r}
+df <- readxl::read_excel("data/Malmö_07-07-1918.xlsx")
+
+df <- df %>% 
+  pivot_longer(-c(side, title), names_to = "stan", values_to = "value")
+
+# df %>% write_rds("data/Malmö_07-07-1918.rds")
+```
+

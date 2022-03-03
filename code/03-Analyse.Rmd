@@ -4,3 +4,142 @@ author: "JJayes"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
 ---
+
+```{r}
+df <- read_rds("data/Malmö_07-07-1918.rds")
+
+df_total <- df %>% 
+  group_by(stan) %>% 
+  summarise(total = sum(value, na.rm = T))
+
+df_total %>% 
+  mutate(stan = fct_reorder(stan, total)) %>% 
+  ggplot(aes(total, stan)) +
+  geom_col()
+```
+
+```{r}
+city_codebook <- read_rds("data/city_codebook.rds")
+```
+
+
+```{r}
+df_total <- df_total %>% 
+  inner_join(city_codebook, by = c("stan"))
+```
+
+## Map
+
+```{r}
+df_total %>% 
+  ggplot(aes(longitude, latitude, size = total, colour = stan)) +
+  geom_point()
+```
+
+
+```{r}
+library(leaflet)
+
+pal <- colorNumeric(
+  palette = "Spectral",
+  domain = df_total$total,
+  reverse = T
+)
+
+df_total %>% 
+  mutate(label = str_c(stan, " - ", total, " vacancies")) %>% 
+  leaflet() %>%
+      setView(lng = 13.6953,
+              lat = 55.87887,
+              zoom = 8) %>% 
+      addProviderTiles("CartoDB.Positron") %>% 
+  addCircleMarkers(
+    radius = ~ total / 10,
+    label = ~ as.character(label),
+    color = ~pal(total)
+  ) %>% 
+  addLegend("bottomright", pal = pal, values = ~ total,
+    title = "Number of total vacancies",
+    labFormat = labelFormat(),
+    opacity = 1
+  )
+```
+
+## Map for hotell staff
+
+```{r}
+df_hotel <- df %>% 
+  mutate(hotel = str_detect(title, "till hotell")) %>% 
+  group_by(stan, hotel) %>% 
+  summarise(total_hotel = sum(value, na.rm = T)) %>% 
+  ungroup() %>% 
+  filter(hotel == TRUE)
+
+pal <- colorNumeric(
+  palette = "YlGnBu",
+  domain = df_hotel$total_hotel,
+  reverse = T
+)
+
+df_hotel %>%
+  select(-hotel) %>%
+  inner_join(city_codebook) %>%
+  mutate(label = str_c(stan, " - ", total_hotel, " hotel vacancies")) %>%
+  leaflet() %>%
+  setView(
+    lng = 13.6953,
+    lat = 55.87887,
+    zoom = 8
+  ) %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addCircleMarkers(
+    radius = ~ total_hotel / 2,
+    label = ~ as.character(label),
+    color = ~pal(total_hotel)
+  ) %>% 
+  addLegend("bottomright", pal = pal, values = ~ total_hotel,
+    title = "Number of hotel related vacancies",
+    labFormat = labelFormat(),
+    opacity = 1
+  )
+
+```
+
+
+
+```{r}
+df_total %>%
+  inner_join(df_hotel %>% select(-hotel)) %>%
+  mutate(stan = fct_reorder(stan, total)) %>%
+  pivot_longer(c(total, total_hotel)) %>%
+  mutate(
+    name = case_when(
+      name == "total" ~ "Total vacancies",
+      TRUE ~ "Hotel related vacancies"
+    ),
+    name = fct_relevel(name, "Total vacancies")
+  ) %>%
+  ggplot(aes(value, stan, fill = name)) +
+  geom_col(show.legend = FALSE) +
+  scale_fill_manual(values = c("#23373B", "#EB821D")) +
+  facet_wrap(~name, scales = "free_x") +
+  labs(
+    x = "Number of vacancies advertised\n7 July 1918",
+    y = NULL
+  )
+```
+
+
+```{r}
+df %>%
+  group_by(title) %>%
+  summarise(vacancies = sum(value, na.rm = T)) %>%
+  arrange(desc(vacancies)) %>%
+  head(15) %>%
+  mutate(vacancies = case_when(
+    title %in% c("Volontärer till armén och flottan", "Betfolk") ~ "Many",
+    TRUE ~ as.character(vacancies)
+  )) %>%
+  knitr::kable()
+```
+
